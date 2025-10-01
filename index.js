@@ -15,7 +15,7 @@ const client = new Client({
 // IDs vindos do .env ou do Render
 const CHANNEL_ID = process.env.CHANNEL_ID; // Canal que dá cargo por menção
 const ROLE_ID = process.env.ROLE_ID;       // Cargo para quem for mencionado
-const XP_ROLE_ID = process.env.XP_ROLE_ID; // Cargo especial por nível
+const MASTER_ROLE_ID = process.env.MASTER_ROLE_ID; // Cargo de Mestre da Comunidade
 
 // 🚫 IDs de cargos que NÃO devem ganhar XP nem aparecer no ranking
 const EXCLUDED_ROLES = [
@@ -70,9 +70,6 @@ client.on("messageCreate", async (message) => {
 
   // --- SISTEMA DE RANKING (COMANDO !rank) ---
   if (message.content.toLowerCase() === "!rank") {
-    console.log("📊 Comando !rank detectado");
-
-    // Ordena os usuários por XP
     const ranking = Object.entries(xpData)
       .sort((a, b) => b[1].xp - a[1].xp);
 
@@ -91,66 +88,56 @@ client.on("messageCreate", async (message) => {
       const membro = await message.guild.members.fetch(id).catch(() => null);
       if (!membro) continue;
 
-      // 🚫 Se tiver cargo excluído, pula
-      if (membro.roles.cache.some(role => EXCLUDED_ROLES.includes(role.id))) {
-        continue;
-      }
+      if (membro.roles.cache.some(role => EXCLUDED_ROLES.includes(role.id))) continue;
 
       descricao += `**${posicao}. ${user.username}** — 🏅 Nível ${dados.level} • ${dados.xp} XP\n`;
       posicao++;
-
-      if (posicao > 5) break; // mostra só o top 5
+      if (posicao > 5) break;
     }
 
     if (!descricao) {
       return message.channel.send("📊 Ninguém qualificado para o ranking ainda!");
     }
 
-    // Cria o embed
     const embed = new EmbedBuilder()
-      .setColor(0x3498db) // azul bonito
+      .setColor(0x3498db)
       .setTitle("🏆 Ranking dos mais ativos 🏆")
       .setDescription(descricao)
-      .setFooter({ text: "Continue participando para subir no ranking!" })
+      .setFooter({ text: "Continue participando para subir no ranking e se tornar um MESTRE DA COMUNIDADE!" })
       .setTimestamp();
 
-    return message.channel.send({ embeds: [embed] });
+    await message.channel.send({ embeds: [embed] });
+    return;
   }
 
   // --- COMANDO !meuxp ---
   if (message.content.toLowerCase() === "!meuxp") {
-    if (!xpData[userId]) {
-      xpData[userId] = { xp: 0, level: 1 };
-    }
+    if (!xpData[userId]) xpData[userId] = { xp: 0, level: 1 };
 
     const dados = xpData[userId];
     const requiredXP = getRequiredXP(dados.level);
 
     const embed = new EmbedBuilder()
-      .setColor(0x2ecc71) // verde
+      .setColor(0x2ecc71)
       .setTitle(`📊 Progresso de ${message.author.username}`)
       .setThumbnail(message.author.displayAvatarURL({ dynamic: true }))
       .addFields(
         { name: "🏅 Nível atual", value: `${dados.level}`, inline: true },
         { name: "⚡ XP atual", value: `${dados.xp}/${requiredXP}`, inline: true }
       )
-      .setFooter({ text: "Continue participando para ganhar mais XP e subir de nível!" })
+      .setFooter({ text: "Continue participando para subir no ranking e se tornar um MESTRE DA COMUNIDADE!" })
       .setTimestamp();
 
     await message.channel.send({ embeds: [embed] });
-    return; // 🔥 impede que continue para o sistema de XP e duplique a mensagem
+    return;
   }
 
   // --- SISTEMA DE XP ---
-  if (!xpData[userId]) {
-    xpData[userId] = { xp: 0, level: 1 };
-  }
+  if (!xpData[userId]) xpData[userId] = { xp: 0, level: 1 };
 
-  // Ganha XP aleatório entre 3 e 8
   const xpGanho = Math.floor(Math.random() * 6) + 3;
   xpData[userId].xp += xpGanho;
 
-  // Checa se subiu de nível
   const requiredXP = getRequiredXP(xpData[userId].level);
   if (xpData[userId].xp >= requiredXP) {
     xpData[userId].level++;
@@ -160,18 +147,28 @@ client.on("messageCreate", async (message) => {
       `🎉 Parabéns ${message.author}, você subiu para o nível ${xpData[userId].level}!`
     );
 
-    // Dar cargo especial quando atingir nível 5
-    if (xpData[userId].level === 5) {
+    // Dar cargo Mestre da Comunidade no nível 10
+    if (xpData[userId].level === 10) {
       try {
-        await member.roles.add(XP_ROLE_ID);
-        message.channel.send(`✅ ${message.author} recebeu o cargo especial por chegar ao nível 5!`);
+        await member.roles.add(MASTER_ROLE_ID);
+
+        const embed = new EmbedBuilder()
+          .setColor(0xf1c40f) // dourado
+          .setTitle("👑 Novo Mestre da Comunidade! 👑")
+          .setDescription(`Parabéns ${message.author}, você alcançou o **Nível 10** e agora é um **MESTRE DA COMUNIDADE**! 🎉`)
+          .addFields(
+            { name: "✨ Benefícios", value: "• Cargo exclusivo\n• Acesso a eventos especiais\n• Sorteios e recompensas" }
+          )
+          .setFooter({ text: "Obrigado por manter nossa comunidade viva e engajada!" })
+          .setTimestamp();
+
+        message.channel.send({ embeds: [embed] });
       } catch (err) {
-        console.error("Erro ao dar cargo de XP:", err);
+        console.error("Erro ao dar cargo Mestre:", err);
       }
     }
   }
 
-  // Salva progresso no arquivo
   fs.writeFileSync(XP_FILE, JSON.stringify(xpData, null, 2));
 
   // --- SISTEMA DE CARGO POR MENÇÃO ---
