@@ -125,7 +125,7 @@ client.on("messageCreate", async (message) => {
         { name: "🏅 Nível atual", value: `${dados.level}`, inline: true },
         { name: "⚡ XP atual", value: `${dados.xp}/${requiredXP}`, inline: true }
       )
-      .setFooter({ text: "Continue participando para subir no ranking e se tornar um MESTRE DA COMUNIDADE!" })
+      .setFooter({ text: "Continue participando para se tornar um MESTRE DA COMUNIDADE!" })
       .setTimestamp();
 
     await message.channel.send({ embeds: [embed] });
