@@ -1,4 +1,4 @@
-const { Client, GatewayIntentBits } = require("discord.js");
+const { Client, GatewayIntentBits, EmbedBuilder } = require("discord.js");
 const fs = require("fs");
 require("dotenv").config();
 
@@ -17,6 +17,19 @@ const CHANNEL_ID = process.env.CHANNEL_ID; // Canal que dá cargo por menção
 const ROLE_ID = process.env.ROLE_ID;       // Cargo para quem for mencionado
 const XP_ROLE_ID = process.env.XP_ROLE_ID; // Cargo especial por nível
 
+// 🚫 IDs de cargos que NÃO devem ganhar XP nem aparecer no ranking
+const EXCLUDED_ROLES = [
+  "1419858565388308582",
+  "1422363833330171957",
+  "1422940293967380503",
+  "1419835737666355375",
+  "1409578158398767214",
+  "1411472970429239376",
+  "1409586436201513107",
+  "1409586091874320470",
+  "1412452682194616393"
+];
+
 // Sistema de XP
 let xpData = {};
 const XP_FILE = "./xp.json";
@@ -34,9 +47,9 @@ if (fs.existsSync(XP_FILE)) {
   xpData = {};
 }
 
-// Função para calcular XP necessário por nível
+// Função para calcular XP necessário por nível (progressiva)
 function getRequiredXP(level) {
-  return 100 * level; // Exemplo: 100 XP lvl 2, 200 lvl 3...
+  return Math.floor(50 * Math.pow(level, 2));
 }
 
 // Evento: quando o bot fica online
@@ -49,44 +62,68 @@ client.on("messageCreate", async (message) => {
   if (message.author.bot) return; // ignora outros bots
   const userId = message.author.id;
 
-// --- SISTEMA DE RANKING (COMANDO !rank) ---
-if (message.content.toLowerCase() === "!rank") {
+  // 🔒 Verifica se o usuário tem algum cargo bloqueado
+  const member = await message.guild.members.fetch(userId).catch(() => null);
+  if (member && member.roles.cache.some(role => EXCLUDED_ROLES.includes(role.id))) {
+    return; // não ganha XP nem entra no ranking
+  }
+
+  // --- SISTEMA DE RANKING (COMANDO !rank) ---
+  if (message.content.toLowerCase() === "!rank") {
     console.log("📊 Comando !rank detectado");
-  // Ordena os usuários por XP
+
+    // Ordena os usuários por XP
     const ranking = Object.entries(xpData)
-    .sort((a, b) => b[1].xp - a[1].xp) // do maior para o menor
-    .slice(0, 5); // mostra só o top 5
+      .sort((a, b) => b[1].xp - a[1].xp);
 
-  if (ranking.length === 0) {
-    return message.channel.send("📊 Ninguém tem XP ainda!");
+    if (ranking.length === 0) {
+      return message.channel.send("📊 Ninguém tem XP ainda!");
+    }
+
+    let descricao = "";
+    let posicao = 1;
+
+    for (let i = 0; i < ranking.length; i++) {
+      const [id, dados] = ranking[i];
+      const user = await client.users.fetch(id).catch(() => null);
+      if (!user) continue;
+
+      const membro = await message.guild.members.fetch(id).catch(() => null);
+      if (!membro) continue;
+
+      // 🚫 Se tiver cargo excluído, pula
+      if (membro.roles.cache.some(role => EXCLUDED_ROLES.includes(role.id))) {
+        continue;
+      }
+
+      descricao += `**${posicao}. ${user.username}** — 🏅 Nível ${dados.level} • ${dados.xp} XP\n`;
+      posicao++;
+
+      if (posicao > 5) break; // mostra só o top 5
+    }
+
+    if (!descricao) {
+      return message.channel.send("📊 Ninguém qualificado para o ranking ainda!");
+    }
+
+    // Cria o embed
+    const embed = new EmbedBuilder()
+      .setColor(0x3498db) // azul bonito
+      .setTitle("🏆 Ranking dos mais ativos 🏆")
+      .setDescription(descricao)
+      .setFooter({ text: "Continue participando para subir no ranking!" })
+      .setTimestamp();
+
+    return message.channel.send({ embeds: [embed] });
   }
-
-  let descricao = "";
-  for (let i = 0; i < ranking.length; i++) {
-    const [id, dados] = ranking[i];
-    const user = await client.users.fetch(id);
-    descricao += `**${i + 1}. ${user.username}** — 🏅 Nível ${dados.level} • ${dados.xp} XP\n`;
-  }
-
-  // Cria o embed
-  const { EmbedBuilder } = require("discord.js");
-  const embed = new EmbedBuilder()
-    .setColor(0x3498db) // azul bonito
-    .setTitle("🏆 Ranking dos mais ativos 🏆")
-    .setDescription(descricao)
-    .setFooter({ text: "Continue participando para subir no ranking!" })
-    .setTimestamp();
-
-  return message.channel.send({ embeds: [embed] });
-}
 
   // --- SISTEMA DE XP ---
   if (!xpData[userId]) {
     xpData[userId] = { xp: 0, level: 1 };
   }
 
-  // Ganha XP aleatório entre 5 e 15
-  const xpGanho = Math.floor(Math.random() * 11) + 5;
+  // Ganha XP aleatório entre 3 e 8
+  const xpGanho = Math.floor(Math.random() * 6) + 3;
   xpData[userId].xp += xpGanho;
 
   // Checa se subiu de nível
@@ -102,7 +139,6 @@ if (message.content.toLowerCase() === "!rank") {
     // Dar cargo especial quando atingir nível 5
     if (xpData[userId].level === 5) {
       try {
-        const member = await message.guild.members.fetch(userId);
         await member.roles.add(XP_ROLE_ID);
         message.channel.send(`✅ ${message.author} recebeu o cargo especial por chegar ao nível 5!`);
       } catch (err) {
@@ -118,9 +154,9 @@ if (message.content.toLowerCase() === "!rank") {
   if (message.channel.id === CHANNEL_ID && message.mentions.users.size > 0) {
     message.mentions.users.forEach(async (user) => {
       try {
-        const member = await message.guild.members.fetch(user.id);
-        await member.roles.add(ROLE_ID);
-        console.log(`🎯 Cargo por menção adicionado para ${member.user.tag}`);
+        const membro = await message.guild.members.fetch(user.id);
+        await membro.roles.add(ROLE_ID);
+        console.log(`🎯 Cargo por menção adicionado para ${membro.user.tag}`);
       } catch (err) {
         console.error("Erro ao adicionar cargo por menção:", err);
       }
