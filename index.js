@@ -103,7 +103,7 @@ client.on("messageCreate", async (message) => {
       .setColor(0x3498db)
       .setTitle("🏆 Ranking dos mais ativos 🏆")
       .setDescription(descricao)
-      .setFooter({ text: "Continue participando para subir no ranking e se tornar um MESTRE DA COMUNIDADE!" })
+      .setFooter({ text: "Continue participando para se tornar um MESTRE DA COMUNIDADE!" })
       .setTimestamp();
 
     await message.channel.send({ embeds: [embed] });
