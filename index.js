@@ -137,7 +137,8 @@ client.on("messageCreate", async (message) => {
       .setFooter({ text: "Continue participando para ganhar mais XP e subir de nível!" })
       .setTimestamp();
 
-    return message.channel.send({ embeds: [embed] });
+    await message.channel.send({ embeds: [embed] });
+    return; // 🔥 impede que continue para o sistema de XP e duplique a mensagem
   }
 
   // --- SISTEMA DE XP ---
