@@ -43,8 +43,9 @@ client.on("messageCreate", async (message) => {
 
 // --- SISTEMA DE RANKING (COMANDO !rank) ---
 if (message.content.toLowerCase() === "!rank") {
+    console.log("📊 Comando !rank detectado");
   // Ordena os usuários por XP
-  const ranking = Object.entries(xpData)
+    const ranking = Object.entries(xpData)
     .sort((a, b) => b[1].xp - a[1].xp) // do maior para o menor
     .slice(0, 5); // mostra só o top 5
 
