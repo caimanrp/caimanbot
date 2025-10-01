@@ -117,6 +117,29 @@ client.on("messageCreate", async (message) => {
     return message.channel.send({ embeds: [embed] });
   }
 
+  // --- COMANDO !meuxp ---
+  if (message.content.toLowerCase() === "!meuxp") {
+    if (!xpData[userId]) {
+      xpData[userId] = { xp: 0, level: 1 };
+    }
+
+    const dados = xpData[userId];
+    const requiredXP = getRequiredXP(dados.level);
+
+    const embed = new EmbedBuilder()
+      .setColor(0x2ecc71) // verde
+      .setTitle(`📊 Progresso de ${message.author.username}`)
+      .setThumbnail(message.author.displayAvatarURL({ dynamic: true }))
+      .addFields(
+        { name: "🏅 Nível atual", value: `${dados.level}`, inline: true },
+        { name: "⚡ XP atual", value: `${dados.xp}/${requiredXP}`, inline: true }
+      )
+      .setFooter({ text: "Continue participando para ganhar mais XP e subir de nível!" })
+      .setTimestamp();
+
+    return message.channel.send({ embeds: [embed] });
+  }
+
   // --- SISTEMA DE XP ---
   if (!xpData[userId]) {
     xpData[userId] = { xp: 0, level: 1 };
