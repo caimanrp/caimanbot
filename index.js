@@ -164,5 +164,16 @@ client.on("messageCreate", async (message) => {
   }
 });
 
+// --- Servidor web "fake" para o Render --- //
+const express = require("express");
+const app = express();
+
+app.get("/", (req, res) => res.send("🤖 CaimanBot está rodando!"));
+
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+  console.log(`🌐 Servidor web ativo na porta ${PORT}`);
+});
+
 // Login do bot
 client.login(process.env.TOKEN);
