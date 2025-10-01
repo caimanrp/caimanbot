@@ -23,7 +23,15 @@ const XP_FILE = "./xp.json";
 
 // Carrega XP já existente, se houver
 if (fs.existsSync(XP_FILE)) {
-  xpData = JSON.parse(fs.readFileSync(XP_FILE));
+  try {
+    const data = fs.readFileSync(XP_FILE, "utf8");
+    xpData = data ? JSON.parse(data) : {};
+  } catch (err) {
+    console.error("Erro ao carregar xp.json:", err);
+    xpData = {};
+  }
+} else {
+  xpData = {};
 }
 
 // Função para calcular XP necessário por nível
